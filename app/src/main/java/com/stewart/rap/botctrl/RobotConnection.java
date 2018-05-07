@@ -16,7 +16,7 @@ public class RobotConnection {
     private static Channel mChannel;
     private static Session mSession;
     private static OutputStream mOutputStream;
-    private boolean mIsConnected = false;
+    private boolean mConnected = false;
     private final ReentrantLock networkingLock = new ReentrantLock();
 
     public void connect() {
@@ -24,20 +24,30 @@ public class RobotConnection {
         new Thread(() -> {
             try {
                 networkingLock.lockInterruptibly();
+                MyApplication.bus.post("busy");
                 mSession = new JSch().getSession("user", "192.168.1.100", 7005);
                 mSession.setPassword("pass");
                 Properties prop = new Properties();
                 prop.put("StrictHostKeyChecking", "no");
                 mSession.setConfig(prop);
-                mSession.connect();
+                mSession.connect(5000); // 5 seconds
                 mChannel = mSession.openChannel("shell");
                 mChannel.setOutputStream(new ByteArrayOutputStream());
                 mOutputStream = mChannel.getOutputStream();
                 mChannel.connect();
-                mIsConnected = true;
+                mConnected = true;
             }
-            catch (JSchException|IOException|InterruptedException e) { e.printStackTrace(); }
-            finally { networkingLock.unlock(); }
+            catch (JSchException|IOException|InterruptedException e) {
+                if (mChannel != null && mChannel.isConnected())
+                    mChannel.disconnect();
+                if (mSession != null && mSession.isConnected())
+                    mSession.disconnect();
+                mConnected = false;
+            }
+            finally {
+                networkingLock.unlock();
+                MyApplication.bus.post("free");
+            }
         }).start();
 
         return;
@@ -48,7 +58,7 @@ public class RobotConnection {
         new Thread(() -> {
             try {
                 networkingLock.lockInterruptibly();
-                if (mIsConnected) {
+                if (mConnected) {
                     mOutputStream.write(string.getBytes());
                     mOutputStream.flush();
                 }
@@ -63,12 +73,18 @@ public class RobotConnection {
         new Thread(() -> {
             try {
                 networkingLock.lockInterruptibly();
-                mChannel.disconnect();
-                mSession.disconnect();
-                mIsConnected = false;
+                MyApplication.bus.post("busy");
+                if (mChannel != null && mChannel.isConnected())
+                    mChannel.disconnect();
+                if (mSession != null && mSession.isConnected())
+                    mSession.disconnect();
             }
             catch (InterruptedException e) { e.printStackTrace(); }
-            finally { networkingLock.unlock(); }
+            finally {
+                networkingLock.unlock();
+                MyApplication.bus.post("free");
+                mConnected = false;
+            }
         }).start();
     }
 
@@ -78,7 +94,7 @@ public class RobotConnection {
         catch (InterruptedException e) { e.printStackTrace(); }
         finally { networkingLock.unlock(); }
 
-        return mIsConnected;
+        return mConnected;
     }
 
 }

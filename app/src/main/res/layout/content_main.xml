@@ -31,7 +31,7 @@
             android:paddingTop="@dimen/activity_vertical_margin"
             tools:context="com.ravensoft.daniel.joysticktest.MainActivity">
 
-            <com.stewart.rap.botctrl.JoystickView
+            <com.stewart.rap.clipbotctrl.JoystickView
                 android:id="@+id/joystick"
                 android:layout_width="wrap_content"
                 android:layout_height="300dp"

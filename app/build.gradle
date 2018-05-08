@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 27
     defaultConfig {
-        applicationId "com.stewart.rap.botctrl"
+        applicationId "com.stewart.rap.clipbotctrl"
         minSdkVersion 19
         targetSdkVersion 19
         versionCode 1
